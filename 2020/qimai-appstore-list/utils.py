@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import time
+import os
 import json
 import base64
 import requests
@@ -12,9 +13,9 @@ import configparser
 from logger import logger
 from settings import *
 
-
+root_dir = os.path.abspath('.')
 cf = configparser.ConfigParser()
-cf.read("config.ini")
+cf.read(root_dir+"/config.ini")
 username = cf.get("User", "username")
 password = cf.get("User", "password")
 
@@ -69,21 +70,15 @@ def _req(path, params=None, data=None, method='GET', sess=None, req_type="", pro
         sess = requests.session()
     # 发起请求
 
-    proxy = get_proxy_op()
-    if base_url.startswith('https://'):
-        proxies = {'https': 'https://' + proxy}
-    else:
-        proxies = {'http': 'http://' + proxy}
-
     try:
         if method == 'GET':
-            resp = sess.get(base_url + path, params=params, headers=headers, proxies=proxies)
+            resp = sess.get(base_url + path, params=params, headers=headers)
         else:
             if not data:
                 logger.info(
                     '%s，请求的没有post body，%s_%s，path：%s，method：%s' % (req_type, product_name, market_name, path, method))
                 return None, sess
-            resp = sess.post(base_url + path, params=params, headers=headers, data=data, proxies=proxies)
+            resp = sess.post(base_url + path, params=params, headers=headers, data=data)
     except RequestException:
         logger.info(
             '%s，请求失败，%s_%s，path：%s，method：%s，error' % (req_type, product_name, market_name, path, method))
@@ -145,28 +140,3 @@ def random_sleep_random(min, max):
 
 def get_date_str():
     return datetime.datetime.strftime(datetime.datetime.today(), '%Y-%m-%d')
-
-
-op_proxy = ['adslspider%s.web.zw.ted:8080', 'adslspider%s.shop.zw.ted:8080']
-
-
-def get_proxy_op():
-    index = random.randint(6, 100)
-
-    if index <= 68:
-        if index < 10:
-            index = '0' + str(index)
-        else:
-            index = str(index)
-        proxy = op_proxy[0] % index
-
-    else:
-        index -= 68
-        if index < 10:
-            index = '0' + str(index)
-        else:
-            index = str(index)
-
-        proxy = op_proxy[1] % index
-
-    return proxy
