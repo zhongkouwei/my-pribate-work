@@ -15,10 +15,16 @@ from bs4 import BeautifulSoup
 root_dir = os.path.abspath('.')
 cf = configparser.ConfigParser()
 cf.read(root_dir+"/config.ini")
-dates = cf.get("Config", "date")
+sdate = cf.get("Config", "sdate")
+edate = cf.get("Config", "edate")
+password = cf.get("Proxy", "username")
 min = int(cf.get("Config", "min"))
 max = int(cf.get("Config", "max"))
 useqimai = int(cf.get("Config", "max"))
+
+if not password or password != "uotsdh@2020":
+    logger.error("需要配置代理")
+    exit()
 
 
 def get_header(date):
@@ -26,14 +32,14 @@ def get_header(date):
         "Accept": "application/json, text/plain, */*",
         "Origin": "https://www.qimai.cn",
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36",
-        "Referer": "https://www.qimai.cn/rank/release/genre/36/country/cn/date/"+date,
+        "Referer": "https://www.qimai.cn/rank/release/genre/36/country/cn/date/" + date +"/is_preorder/0",
         "Accept-Encoding": "gzip, deflate, br",
         "Accept-Language": "zh-CN,zh;q=0.9,zh-TW;q=0.8,en-US;q=0.7,en;q=0.6",
     }
     return headers
 
 
-def get_rank(date):
+def get_rank(sdate, edate):
     sess = login()
 
     """
@@ -45,8 +51,8 @@ def get_rank(date):
     path = '/rank/release'
     method = 'GET'
 
-    if not date or date == "":
-        logger.error("配置错误，请配置日期")
+    if not sdate or sdate == "" or not edate or edate == "":
+        logger.error("配置错误，请配置开始和结束日期")
 
     maxPage = 1
     page = 1
@@ -59,13 +65,16 @@ def get_rank(date):
         params = {
             "genre": 36,
             "country": "cn",
-            "date": date,
+            "is_preorder": 0,
+            "sdate": sdate,
+            "edate": edate,
+            "date": sdate + "_" + edate,
             "page":page
         }
-        logger.info("抓取%s排行数据第%s页", date, page)
+        logger.info("抓取%s排行数据第%s页", sdate + "-" + edate, page)
         random_sleep()
         res, sess = req(path, params=params, method=method, sess = sess, req_type='', product_name='',
-                        market_name='', headers=get_header(date))
+                        market_name='', headers=get_header(sdate + "_" + edate))
         if not res :
             logger.error("获取失败，请重启程序")
             break
@@ -194,7 +203,7 @@ def get_website(id):
     random_sleep_random(min, max)
 
     res, sess = req(path, params=params, method=method, req_type='', product_name='',
-                    market_name='', headers=get_header(date))
+                    market_name='', headers=get_header(""))
     if not res or not res['appInfo']:
         logger.error("解析失败")
         return ""
@@ -252,11 +261,9 @@ if __name__ == '__main__':
     if not os.path.isdir(res_path):
         os.mkdir(res_path)
 
-    dateList = dates.split(",")
-    if not dateList:
+    if not sdate or not edate:
         print("日期配置错误，请重新配置，多个时间中间用英文逗号,分隔")
     else:
-        for date in dateList:
-            results = get_rank(date)
-            save(results, res_path, date)
+        results = get_rank(sdate, edate)
+        save(results, res_path, sdate + "-" + edate)
 
